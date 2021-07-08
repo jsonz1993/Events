@@ -1,0 +1,33 @@
+{
+  "name": "events",
+  "version": "1.0.0",
+  "description": "Node's event emitter for ts.",
+  "main": "rollup.config.js",
+  "dependencies": {
+    "@rollup/plugin-typescript": "^8.2.1",
+    "rollup": "^2.52.8"
+  },
+  "devDependencies": {
+    "@types/jest": "^26.0.24",
+    "jest": "^27.0.6",
+    "ts-jest": "^27.0.3",
+    "ts-node": "^10.0.0",
+    "typescript": "^4.3.5"
+  },
+  "scripts": {
+    "build": "rollup --config ./rollup.config.js",
+    "watch": "rollup --config ./rollup.config.js --watch",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jsonz1993/Events.git"
+  },
+  "keywords": [],
+  "author": "jsonz",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jsonz1993/Events/issues"
+  },
+  "homepage": "https://github.com/jsonz1993/Events#readme"
+}
