@@ -1,6 +1,10 @@
 
+interface FunctionWrap extends Function {
+  listener?: Function
+}
+
 type EventListenerMap = {
-  [key in any]: Function[]
+  [key in any]: FunctionWrap[]
 }
 
 export default class EventEmitter {
@@ -10,8 +14,8 @@ export default class EventEmitter {
   private listenersCount = 0
 
   private checkBeforeAddListener() {
-    if (this.listenersCount > this.maxListeners) {
-      throw new Error('超过最大绑定数')
+    if (this.listenersCount >= this.maxListeners) {
+      throw new Error('超过最大监听数')
     }
     this.listenersCount ++
   }
@@ -25,7 +29,7 @@ export default class EventEmitter {
     return onceWrap
   }
 
-  on(eventName: any, listener: Function) {
+  on(eventName: any, listener: FunctionWrap) {
     this.checkBeforeAddListener()
     const list = this.listeners(eventName)
     list.push(listener)
@@ -33,18 +37,18 @@ export default class EventEmitter {
 
   addEventListener = this.on
 
-  once(eventName: any, listener: Function) {
+  once(eventName: any, listener: FunctionWrap) {
     const onceListener = this.generateOnceWrap(eventName, listener)
     this.on(eventName, onceListener)
   }
 
-  prependListener(eventName: any, listener: Function) {
+  prependListener(eventName: any, listener: FunctionWrap) {
     this.checkBeforeAddListener()
     const list = this.listeners(eventName)
     list.unshift(listener)
   }
 
-  prependOnceListener(eventName: any, listener: Function) {
+  prependOnceListener(eventName: any, listener: FunctionWrap) {
     const onceListener = this.generateOnceWrap(eventName, listener)
     this.prependListener(eventName, onceListener)
   }
@@ -57,15 +61,16 @@ export default class EventEmitter {
     }
   }
 
-  off(eventName: any, listener?: Function) {
+  off(eventName: any, listener?: FunctionWrap) {
+    const list = this.listeners(eventName)
     if (listener) {
-      const list = this.listeners(eventName)
-      const index = list.indexOf(listener)
-      if (index !== -1) {
-        list.splice(index, 1)
-      }
+      // 不应该用indexOf，因为可能重复绑定了多个相同的函数
+      const nextListeners = list.filter(item => item !== listener)
+      this.eventListenerMap[eventName] = nextListeners
+      this.listenersCount -= (list.length - nextListeners.length)
     } else {
       this.eventListenerMap[eventName] = []
+      this.listenersCount -= list.length
     }
   }
   
@@ -91,7 +96,7 @@ export default class EventEmitter {
     return this.listeners(eventName).length
   }
 
-  listeners(eventName: any): Function[]{
+  listeners(eventName: any): FunctionWrap[]{
     let list = this.eventListenerMap[eventName]
     if (!list) {
       this.eventListenerMap[eventName] = list = []
