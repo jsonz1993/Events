@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "declaration": true,
-    "declarationDir": "./dist"
+    "declarationDir": "./dist",
+    "target": "ES5"
   },
   "include": ["src"]
 }

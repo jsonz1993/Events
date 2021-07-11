@@ -3,32 +3,33 @@ interface FunctionWrap extends Function {
   listener?: Function
 }
 
-
 type EventName = string | symbol
 
 export default class EventEmitter {
 
+  static defaultMaxListeners = 10
+  static newListenerEventName = 'newListener'
+  static removeListenerEventName = 'removeListener'
+  
   // typescript@4.4-beta 才支持对象的索引 symbol
   // 但是 @rollup/typescript 还没有对4.4进行支持，所以这里改用map去实现
   private eventListenerMap:Map<EventName, FunctionWrap[]> = new Map();
   private listenerCountMap: Map<EventName, number> = new Map();
-  private defaultMaxListeners = 10
   private isRunningNewListeners = false
-  private isRunningRemoveListeners = false
-  private newListenerEventName = 'newListener'
-  private removeListenerEventName = 'removeListener'
+  private defaultMaxListeners: number = EventEmitter.defaultMaxListeners
 
   private checkBeforeAddListener(eventName:EventName) {
     const count = this.listenerCountMap.get(eventName) || 0
-    if (count >= this.defaultMaxListeners) {
-      throw new Error(`MaxListenersExceededWarning: Possible EventEmitter memory leak detected. ${this.defaultMaxListeners+1} event listeners added to [EventEmitter]. Use emitter.setMaxListeners() to increase limit`)
+    const maxListeners = this.getMaxListeners()
+    if (count >= maxListeners) {
+      throw new Error(`MaxListenersExceededWarning: Possible EventEmitter memory leak detected. ${maxListeners+1} event listeners added to [EventEmitter]. Use emitter.setMaxListeners() to increase limit`)
     }
     this.listenerCountMap.set(eventName, count + 1);
   }
 
   private generateOnceWrap(eventName: EventName, listener: FunctionWrap): FunctionWrap {
     const onceWrap = (...args) => {
-      onceWrap.listener.apply(null, args)
+      onceWrap.listener.apply(this, args)
       this.off(eventName, onceWrap)
     }
     onceWrap.listener = listener
@@ -38,8 +39,9 @@ export default class EventEmitter {
   on(eventName: EventName, listener: FunctionWrap) {
     this.checkBeforeAddListener(eventName)
     const list = this.listeners(eventName)
-    if (eventName !== this.newListenerEventName) {
-      this.emit(this.newListenerEventName, eventName, listener)
+    const newListener = this.listeners(EventEmitter.newListenerEventName, false)
+    if (eventName !== EventEmitter.newListenerEventName && newListener.length) {
+      this.emit(EventEmitter.newListenerEventName, eventName, listener)
     }
     list.push(listener)
   }
@@ -53,7 +55,7 @@ export default class EventEmitter {
 
   prependListener(eventName: EventName, listener: FunctionWrap) {
     this.checkBeforeAddListener(eventName)
-    this.emit(this.newListenerEventName, eventName, listener)
+    this.emit(EventEmitter.newListenerEventName, eventName, listener)
     const list = this.listeners(eventName)
     list.unshift(listener)
   }
@@ -65,23 +67,17 @@ export default class EventEmitter {
 
   emit(eventName: EventName, ...args: any[]) {
     if (
-      (this.isRunningNewListeners && eventName === this.newListenerEventName)
-      ||
-      (this.isRunningRemoveListeners && eventName === this.removeListenerEventName)
+      (this.isRunningNewListeners && eventName === EventEmitter.newListenerEventName)
     ) return
     const list = this.listeners(eventName)
     const copy = [...list]
-    if (eventName === this.newListenerEventName) {
+    if (eventName === EventEmitter.newListenerEventName) {
       this.isRunningNewListeners = true
     }
-    if (eventName === this.removeListenerEventName) {
-      this.isRunningRemoveListeners = true
-    }
     for (let i = 0; i < copy.length; i++) {
-      copy[i].apply(null, args)
+      copy[i].apply(this, args)
     }
     this.isRunningNewListeners = false
-    this.isRunningRemoveListeners = false
   }
 
   off(eventName: EventName, listener?: FunctionWrap) {
@@ -101,7 +97,7 @@ export default class EventEmitter {
     this.eventListenerMap.set(eventName, nextListeners)
     this.listenerCountMap.set(eventName, list.length - removedListeners.length)
     removedListeners.forEach(item => {
-      this.emit('removeListener', eventName, item)
+      this.emit(EventEmitter.removeListenerEventName, eventName, item)
     })
   }
   
@@ -112,7 +108,7 @@ export default class EventEmitter {
   removeListener = this.off
 
   eventNames(): EventName[] {
-    return Array.from(this.eventListenerMap.keys()).filter(key => key !== this.newListenerEventName && key !== this.removeListenerEventName)
+    return Array.from(this.eventListenerMap.keys())
   }
 
   setMaxListeners(maxListeners: number) {
@@ -120,18 +116,20 @@ export default class EventEmitter {
   }
 
   getMaxListeners(): number {
-    return this.defaultMaxListeners
+    return this.defaultMaxListeners || EventEmitter.defaultMaxListeners
   }
 
   listenerCount(eventName: EventName): number{
     return this.listeners(eventName).length
   }
 
-  listeners(eventName: EventName): FunctionWrap[]{
+  listeners(eventName: EventName, init = true): FunctionWrap[]{
     let list = this.eventListenerMap.get(eventName)
     if (!list) {
       list = []
-      this.eventListenerMap.set(eventName, list)
+      if (init) {
+        this.eventListenerMap.set(eventName, list)
+      }
     }
     return list
   }

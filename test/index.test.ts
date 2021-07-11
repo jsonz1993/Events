@@ -1,6 +1,5 @@
 import EventEmitter from '../src/index'
 
-
 const pureEe = new EventEmitter();
 const n = () => {}
 const fn = jest.fn()
@@ -55,9 +54,7 @@ describe('添加监听函数', () => {
     pureEe.emit('test', true)
     expect(mock.mock.calls.length).toBe(3)
   })
-})
 
-describe('prepend 监听函数',() => {
   test('prepend', (done) => {
     const mockFn = jest.fn()
     pureEe.on('test',() => {
@@ -95,6 +92,15 @@ describe('prepend 监听函数',() => {
     expect(mockFn.mock.calls[0][0]).toBe(-2)
     expect(mockFn.mock.calls[1][0]).toBe(-1)
     expect(mockFn.mock.calls[2][0]).toBe(1)
+  })
+
+  test('this 指向', (done) => {
+    const ee = new EventEmitter()
+    ee.on('test', function() {
+      expect(this).toEqual(ee)
+      done()
+    })
+    ee.emit('test')
   })
 })
 
@@ -212,6 +218,21 @@ describe('监听数量', () => {
     }).toThrow()
     ee.setMaxListeners(100)
     ee.on('test', () => {})
+  })
+
+  test('修改默认监听数量', () => {
+    EventEmitter.defaultMaxListeners = 1;
+    const ee1 = new EventEmitter()
+    const ee2 = new EventEmitter()
+    ee1.on('test', n)
+    ee2.on('test', n)
+    expect(() => {
+      ee1.on('test', n)
+    }).toThrow()
+    expect(() => {
+      ee2.on('test', n)
+    }).toThrow()
+    EventEmitter.defaultMaxListeners = 10
   })
 })
 
