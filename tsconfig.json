@@ -2,5 +2,6 @@
   "compilerOptions": {
     "declaration": true,
     "declarationDir": "./dist"
-  }
+  },
+  "include": ["src"]
 }

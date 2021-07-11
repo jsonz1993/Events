@@ -2,19 +2,22 @@ import EventEmitter from '../src/index'
 
 
 const pureEe = new EventEmitter();
+const n = () => {}
+const fn = jest.fn()
 afterEach(() => {
   pureEe.removeAllListeners(pureEe.eventNames())
+  fn.mockClear()
 })
 
 describe('添加监听函数', () => {
   const params = { name: 'jsonz' }
 
-  test('on函数', done => {
+  test('on函数', () => {
     pureEe.on('test', (value) => {
-      expect(value).toBe(params)
-      done()
+      fn(value)
     })
     pureEe.emit('test', params)
+    expect(fn.mock.calls[0][0]).toBe(params)
   })
 
   test('addEventListener 函数', done => {
@@ -95,6 +98,43 @@ describe('prepend 监听函数',() => {
   })
 })
 
+describe('newListener and removeListener', () => {
+  test('newListener', () => {
+    const ee = new EventEmitter()
+    const fn = jest.fn()
+    ee.on('newListener', (event, listener) => {
+      if (event === 'event') {
+        ee.on('event', () => {
+          fn('B')
+        })
+      }
+    })
+    ee.on('event', () => {
+      fn('A')
+    })
+    ee.emit('event')
+    expect(fn.mock.calls.length).toBe(2)
+    expect(fn.mock.calls[0][0]).toBe('B')
+    expect(fn.mock.calls[1][0]).toBe('A')
+  })
+
+  test('removeListener', () => {
+    const ee = new EventEmitter()
+    const fn = jest.fn()
+    ee.on('removeListener', (event, listener) => {
+      if (event === 'event') {
+        listener()
+      }
+    })
+    ee.on('event', () => {
+      fn('test')
+    })
+    ee.off('event')
+    expect(fn.mock.calls.length).toBe(1)
+    expect(fn.mock.calls[0][0]).toBe('test')
+  })
+})
+
 describe('解绑', () => {
   test('off', () => {
     const mockFn = jest.fn()
@@ -142,10 +182,10 @@ describe('监听数量', () => {
   const noop = () => {}
 
   test('maxListeners', () => {
-    expect(pureEe.getMaxListeners()).toBe(100)
-    pureEe.setMaxListeners(10)
     expect(pureEe.getMaxListeners()).toBe(10)
-    pureEe.setMaxListeners(100)
+    pureEe.setMaxListeners(1)
+    expect(pureEe.getMaxListeners()).toBe(1)
+    pureEe.setMaxListeners(10)
   })
 
   test('listenerCount', () => {
@@ -165,6 +205,7 @@ describe('监听数量', () => {
     const ee = new EventEmitter()
     ee.setMaxListeners(1)
     ee.on('test', () => {})
+    ee.on('test1', () => {})
 
     expect(() => {
       ee.on('test', () => {})
@@ -199,7 +240,7 @@ describe('Nodejs.org emitter.rawListeners(eventName) test', () => {
 
     const listeners = emitter.rawListeners('log')
     const logFnWrapper = listeners[0]
-    logFnWrapper.listener()
+    logFnWrapper?.listener()
     expect(mockFn.mock.calls.length).toBe(1)
     emitter.emit('log')
     expect(mockFn.mock.calls.length).toBe(2)
@@ -221,3 +262,4 @@ describe('Nodejs.org emitter.rawListeners(eventName) test', () => {
     expect(mockFn.mock.calls.length).toBe(2)
   })
 })
+
